@@ -88,9 +88,9 @@ PmData::PmData(const QByteArray &packet)
         stream >> raw5;
         stream >> raw10;
         // Misc data
-        version = quint8(packet.at(28));
-        errorCode = quint8(packet.at(29));
-        stream.skipRawData(2); // skip 2 bytes
+        stream >> version; // = quint8(packet.at(28));
+        stream >> errorCode; // = quint8(packet.at(29));
+        //stream.skipRawData(2); // skip 2 bytes
         stream >> payloadChecksum;
 
         qDebug() << "Pos:" << frameLength << ":" << stream.device()->pos();
@@ -98,7 +98,7 @@ PmData::PmData(const QByteArray &packet)
         // Calculate the payload checksum (not including the payload checksum bytes)
         quint16 inputChecksum = 0;
         for (int i = 0; i < 29; ++i) {
-            inputChecksum = inputChecksum + quint16(packet.at(i));
+            inputChecksum = inputChecksum + quint8(packet.at(i));
         }
 
         if (inputChecksum != payloadChecksum) {

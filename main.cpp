@@ -21,6 +21,11 @@ int main(int argc, char *argv[])
      *
      * https://askubuntu.com/questions/112568/how-do-i-allow-a-non-default-user-to-use-serial-device-ttyusb0
      *
+     * sudo nano /etc/udev/rules.d/50-myusb.rules
+     *
+     * KERNEL=="ttyUSB[0-9]*",MODE="0666"
+     * KERNEL=="ttyACM[0-9]*",MODE="0666"
+     *
      * dmesg | grep tty
      */
     port.setPortName(QStringLiteral("/dev/ttyUSB0"));
