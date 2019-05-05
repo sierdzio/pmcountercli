@@ -15,6 +15,11 @@ Reader::Reader(QSerialPort *serialPort, QObject *parent)
     mTimer.start(5000);
 }
 
+PmData Reader::pmData() const
+{
+    return mPm;
+}
+
 void Reader::handleReadyRead()
 {
     mReadData.append(mSerialPort->readAll());
@@ -30,8 +35,8 @@ void Reader::handleReadyRead()
         if (mReadData.size() >= mPacketSize) {
             const QByteArray packet(mReadData.left(mPacketSize));
             mReadData = mReadData.mid(mPacketSize);
-            PmData pm(packet);
-            pm.print();
+            mPm = PmData(packet);
+            mPm.print();
         }
     }
 }
