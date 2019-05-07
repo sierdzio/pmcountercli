@@ -46,8 +46,12 @@ class Reader : public QObject
     Q_OBJECT
 
 public:
-    explicit Reader(QSerialPort *serialPort, QObject *parent = nullptr);
+    explicit Reader(QSerialPort *serialPort,
+                    const int timeout = 5000,
+                    QObject *parent = nullptr);
     PmData pmData() const;
+    int timeout() const;
+    void restart();
 
 private slots:
     void handleReadyRead();
@@ -60,6 +64,7 @@ private:
     QTimer mTimer;
     PmData mPm;
     const int mPacketSize = 32;
+    const int mTimeout = 5000;
 };
 
 #endif // READER_H
