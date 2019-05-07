@@ -32,11 +32,16 @@ void Reader::handleReadyRead()
         //                .arg(mSerialPort->portName())
         //         << mReadData;
 
-        if (mReadData.size() >= mPacketSize) {
-            const QByteArray packet(mReadData.left(mPacketSize));
-            mReadData = mReadData.mid(mPacketSize);
-            mPm = PmData(packet);
-            mPm.print();
+        while (mReadData.size() >= mPacketSize) {
+            if (mReadData.at(0) == 0x42 and mReadData.at(1) == 0x4d) {
+                const QByteArray packet(mReadData.left(mPacketSize));
+                mReadData = mReadData.mid(mPacketSize);
+                mPm = PmData(packet);
+                mPm.print();
+            } else {
+                // Remove first character
+                mReadData = mReadData.mid(1, -1);
+            }
         }
     }
 }
