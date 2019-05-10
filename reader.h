@@ -11,6 +11,8 @@ public:
     PmData() {}
     PmData(const QByteArray &packet);
 
+    void averageWith(const PmData &other);
+
     void print() const;
     bool isError() const;
 
@@ -39,6 +41,10 @@ public:
 
     // Calculate the payload checksum (not including the payload checksum bytes)
     quint16 inputChecksum = 0x42 + 0x4d;
+
+private:
+    template<class Type>
+    void avg(Type &orig, const Type &other, const bool isOtherError);
 };
 
 class Reader : public QObject
@@ -53,6 +59,9 @@ public:
     int timeout() const;
     void restart();
 
+    void setAverageResults(const bool average);
+    bool isAveragingResults() const;
+
 private slots:
     void handleReadyRead();
     void handleTimeout();
@@ -63,6 +72,7 @@ private:
     QByteArray mReadData;
     QTimer mTimer;
     PmData mPm;
+    bool mAverageResults = false;
     const int mPacketSize = 32;
     const int mTimeout = 5000;
 };

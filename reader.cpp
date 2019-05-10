@@ -30,6 +30,16 @@ void Reader::restart()
     mTimer.start(mTimeout);
 }
 
+void Reader::setAverageResults(const bool average)
+{
+    mAverageResults = average;
+}
+
+bool Reader::isAveragingResults() const
+{
+    return mAverageResults;
+}
+
 void Reader::handleReadyRead()
 {
     mReadData.append(mSerialPort->readAll());
@@ -46,7 +56,11 @@ void Reader::handleReadyRead()
             if (mReadData.at(0) == 0x42 and mReadData.at(1) == 0x4d) {
                 const QByteArray packet(mReadData.left(mPacketSize));
                 mReadData = mReadData.mid(mPacketSize);
-                mPm = PmData(packet);
+                if (mAverageResults) {
+                    mPm.averageWith(PmData(packet));
+                } else {
+                    mPm = PmData(packet);
+                }
                 mPm.print();
             } else {
                 // Remove first character
@@ -130,6 +144,30 @@ PmData::PmData(const QByteArray &packet)
     }
 }
 
+void PmData::averageWith(const PmData &other)
+{
+    if (mIsError && other.isError()) {
+        qDebug() << "Both data packets contain errors";
+        return;
+    }
+
+    const bool isOtherError = other.isError();
+    avg(stdPm1, other.stdPm1, isOtherError);
+    avg(stdPm25, other.stdPm25, isOtherError);
+    avg(stdPm10, other.stdPm10, isOtherError);
+
+    avg(atm1, other.atm1, isOtherError);
+    avg(atm25, other.atm25, isOtherError);
+    avg(atm10, other.atm10, isOtherError);
+
+    avg(raw03, other.raw03, isOtherError);
+    avg(raw05, other.raw05, isOtherError);
+    avg(raw1, other.raw1, isOtherError);
+    avg(raw25, other.raw25, isOtherError);
+    avg(raw5, other.raw5, isOtherError);
+    avg(raw10, other.raw10, isOtherError);
+}
+
 void PmData::print() const
 {
     //qDebug() << "Length:" << frameLength
@@ -146,4 +184,25 @@ void PmData::print() const
 bool PmData::isError() const
 {
     return mIsError;
+}
+
+template<class Type>
+void PmData::avg(Type &orig, const Type &other, const bool isOtherError)
+{
+    if (mIsError && isOtherError) {
+        qDebug() << "ERROR! Both values which you try to average are in error state";
+        return;
+    }
+
+    if (mIsError == false && isOtherError == true) {
+        return;
+    }
+
+    if (mIsError == true && isOtherError == false) {
+        orig = other;
+        return;
+    }
+
+    orig += other;
+    orig /= Type(2);
 }
