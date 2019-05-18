@@ -15,7 +15,7 @@ Reader::Reader(QSerialPort *serialPort,
     mTimer.start(mTimeout);
 }
 
-PmData Reader::pmData() const
+PmPacket Reader::pmData() const
 {
     return mPm;
 }
@@ -57,9 +57,9 @@ void Reader::handleReadyRead()
                 const QByteArray packet(mReadData.left(mPacketSize));
                 mReadData = mReadData.mid(mPacketSize);
                 if (mAverageResults) {
-                    mPm.averageWith(PmData(packet));
+                    mPm.averageWith(PmPacket(packet));
                 } else {
-                    mPm = PmData(packet);
+                    mPm = PmPacket(packet);
                 }
                 mPm.print();
             } else {
@@ -88,7 +88,7 @@ void Reader::handleError(const QSerialPort::SerialPortError error)
     }
 }
 
-PmData::PmData(const QByteArray &packet)
+PmPacket::PmPacket(const QByteArray &packet)
 {
     if (packet.at(0) == 0x42 and packet.at(1) == 0x4d) {
         QDataStream stream(packet);
@@ -123,6 +123,8 @@ PmData::PmData(const QByteArray &packet)
         // Misc data
         stream >> version; // = quint8(packet.at(28));
         stream >> errorCode; // = quint8(packet.at(29));
+        const int dataBytesLength = stream.device()->pos(); // Should be 29
+        qDebug() << "Packet position" << dataBytesLength;
         //stream.skipRawData(2); // skip 2 bytes
         stream >> payloadChecksum;
 
@@ -130,7 +132,7 @@ PmData::PmData(const QByteArray &packet)
 
         // Calculate the payload checksum (not including the payload checksum bytes)
         quint16 inputChecksum = 0;
-        for (int i = 0; i < 29; ++i) {
+        for (int i = 0; i < dataBytesLength; ++i) {
             inputChecksum = inputChecksum + quint8(packet.at(i));
         }
 
@@ -144,7 +146,7 @@ PmData::PmData(const QByteArray &packet)
     }
 }
 
-void PmData::averageWith(const PmData &other)
+void PmPacket::averageWith(const PmPacket &other)
 {
     if (mIsError && other.isError()) {
         qDebug() << "Both data packets contain errors";
@@ -168,7 +170,7 @@ void PmData::averageWith(const PmData &other)
     avg(raw10, other.raw10, isOtherError);
 }
 
-void PmData::print() const
+void PmPacket::print() const
 {
     //qDebug() << "Length:" << frameLength
     //         << "\nStandard PM in ug/m3:\n"
@@ -181,13 +183,13 @@ void PmData::print() const
     qDebug() << stdPm1 << "|" << stdPm25 << "|" << stdPm10;
 }
 
-bool PmData::isError() const
+bool PmPacket::isError() const
 {
     return mIsError;
 }
 
 template<class Type>
-void PmData::avg(Type &orig, const Type &other, const bool isOtherError)
+void PmPacket::avg(Type &orig, const Type &other, const bool isOtherError)
 {
     if (mIsError && isOtherError) {
         qDebug() << "ERROR! Both values which you try to average are in error state";

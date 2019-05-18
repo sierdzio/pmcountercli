@@ -4,14 +4,15 @@
 #include <QByteArray>
 #include <QSerialPort>
 #include <QTimer>
+#include <QHash>
 #include <QObject>
 
-class PmData {
+class PmPacket {
 public:
-    PmData() {}
-    PmData(const QByteArray &packet);
+    PmPacket() {}
+    PmPacket(const QByteArray &packet);
 
-    void averageWith(const PmData &other);
+    void averageWith(const PmPacket &other);
 
     void print() const;
     bool isError() const;
@@ -47,6 +48,24 @@ private:
     void avg(Type &orig, const Type &other, const bool isOtherError);
 };
 
+enum CommandType {
+    RequestData, //! Command works in passive mode
+    MakePassive,
+    MakeActive,
+    Sleep,
+    WakeUp
+};
+
+struct PmCommand {
+    PmCommand(const CommandType _type, const quint8 _cmd, const quint16 _data,
+              const bool _hasReply)
+        : type(_type), cmd(_cmd), data(_data), hasReply(_hasReply) {}
+    CommandType type;
+    quint8 cmd = 0;
+    quint16 data = 0;
+    bool hasReply = false;
+};
+
 class Reader : public QObject
 {
     Q_OBJECT
@@ -55,7 +74,7 @@ public:
     explicit Reader(QSerialPort *serialPort,
                     const int timeout = 5000,
                     QObject *parent = nullptr);
-    PmData pmData() const;
+    PmPacket pmData() const;
     int timeout() const;
     void restart();
 
@@ -71,10 +90,17 @@ private:
     QSerialPort *mSerialPort = nullptr;
     QByteArray mReadData;
     QTimer mTimer;
-    PmData mPm;
+    PmPacket mPm;
     bool mAverageResults = false;
     const int mPacketSize = 32;
     const int mTimeout = 5000;
+    const QHash<CommandType, PmCommand> mCommands = {
+        { RequestData, { RequestData, 0xe2, 0, true } },
+        { MakePassive, { MakePassive, 0xe1, 0, false } },
+        { MakeActive,  { MakeActive,  0xe1, 0x0001, false } },
+        { Sleep,       { Sleep,       0xe4, 0, false } },
+        { WakeUp,      { WakeUp,      0xe4, 0x0001, false } },
+    };
 };
 
 #endif // READER_H
