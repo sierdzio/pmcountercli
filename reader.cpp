@@ -8,8 +8,10 @@ Reader::Reader(QSerialPort *serialPort,
                QObject *parent)
     : QObject(parent), mSerialPort(serialPort), mTimeout(timeout)
 {
-    connect(mSerialPort, &QSerialPort::readyRead, this, &Reader::handleReadyRead);
-    connect(mSerialPort, &QSerialPort::errorOccurred, this, &Reader::handleError);
+    connect(mSerialPort, &QSerialPort::readyRead,
+            this, &Reader::handleReadyRead);
+    connect(mSerialPort, &QSerialPort::errorOccurred,
+            this, &Reader::handleError);
     connect(&mTimer, &QTimer::timeout, this, &Reader::handleTimeout);
     mTimer.setSingleShot(true);
     mTimer.start(mTimeout);
@@ -38,6 +40,26 @@ void Reader::setAverageResults(const bool average)
 bool Reader::isAveragingResults() const
 {
     return mAverageResults;
+}
+
+bool Reader::executeCommand(const CommandType type) const
+{
+    if (mSerialPort->isOpen() == false
+        || mSerialPort->isWritable() == false
+        || mCommands.contains(type) == false) {
+        return false;
+    }
+
+    const PmCommand &command = mCommands.value(type);
+    const QByteArray commandData = command.command();
+
+    const qint64 written = mSerialPort->write(commandData);
+
+    if (written == qint64(commandData.length())) {
+        return true;
+    }
+
+    return false;
 }
 
 void Reader::handleReadyRead()
@@ -207,4 +229,19 @@ void PmPacket::avg(Type &orig, const Type &other, const bool isOtherError)
 
     orig += other;
     orig /= Type(2);
+}
+
+PmCommand::PmCommand(const CommandType _type, const quint8 _cmd, const quint16 _data, const bool _hasReply)
+    : type(_type), cmd(_cmd), data(_data), hasReply(_hasReply)
+{
+}
+
+QByteArray PmCommand::command() const
+{
+    QByteArray result;
+    QDataStream stream(&result, QIODevice::WriteOnly);
+    stream.setByteOrder(QDataStream::BigEndian);
+    const quint16 integrityCheck = 0x42 + 0x4d + cmd + data;
+    stream << 0x42 << 0x4d << cmd << data << integrityCheck;
+    return result;
 }

@@ -58,8 +58,10 @@ enum CommandType {
 
 struct PmCommand {
     PmCommand(const CommandType _type, const quint8 _cmd, const quint16 _data,
-              const bool _hasReply)
-        : type(_type), cmd(_cmd), data(_data), hasReply(_hasReply) {}
+              const bool _hasReply);
+
+    QByteArray command() const;
+
     CommandType type;
     quint8 cmd = 0;
     quint16 data = 0;
@@ -80,6 +82,9 @@ public:
 
     void setAverageResults(const bool average);
     bool isAveragingResults() const;
+
+    // Commands
+    bool executeCommand(const CommandType type) const;
 
 private slots:
     void handleReadyRead();
