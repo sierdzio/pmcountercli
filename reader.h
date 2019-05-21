@@ -48,31 +48,42 @@ private:
     void avg(Type &orig, const Type &other, const bool isOtherError);
 };
 
-enum CommandType {
-    RequestData, //! Command works in passive mode
-    MakePassive,
-    MakeActive,
-    Sleep,
-    WakeUp
-};
-
-struct PmCommand {
-    PmCommand(const CommandType _type, const quint8 _cmd, const quint16 _data,
-              const bool _hasReply);
-
-    QByteArray command() const;
-
-    CommandType type;
-    quint8 cmd = 0;
-    quint16 data = 0;
-    bool hasReply = false;
-};
-
 class Reader : public QObject
 {
     Q_OBJECT
 
 public:
+    enum Status {
+        Unknown,
+        Sleeping,
+        WakingUp,
+        Passive,
+        Active
+    };
+    Q_ENUM(Status)
+
+    enum CommandType {
+        RequestData, //! Command works in passive mode
+        MakePassive,
+        MakeActive,
+        Sleep,
+        WakeUp
+    };
+    Q_ENUM(CommandType)
+
+    struct PmCommand {
+        PmCommand() {}
+        PmCommand(const CommandType _type, const quint8 _cmd, const quint16 _data,
+                  const bool _hasReply);
+
+        QByteArray command() const;
+
+        CommandType type;
+        quint8 cmd = 0;
+        quint16 data = 0;
+        bool hasReply = false;
+    };
+
     explicit Reader(QSerialPort *serialPort,
                     const int timeout = 5000,
                     QObject *parent = nullptr);
@@ -86,6 +97,8 @@ public:
     // Commands
     bool executeCommand(const CommandType type) const;
 
+    QString status() const;
+
 private slots:
     void handleReadyRead();
     void handleTimeout();
@@ -97,6 +110,7 @@ private:
     QTimer mTimer;
     PmPacket mPm;
     bool mAverageResults = false;
+    Status mStatus = Unknown;
     const int mPacketSize = 32;
     const int mTimeout = 5000;
     const QHash<CommandType, PmCommand> mCommands = {

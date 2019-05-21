@@ -1,6 +1,7 @@
 #include "reader.h"
 
 #include <QDataStream>
+#include <QMetaEnum>
 #include <QDebug>
 
 Reader::Reader(QSerialPort *serialPort,
@@ -52,7 +53,7 @@ bool Reader::executeCommand(const CommandType type) const
 
     const PmCommand &command = mCommands.value(type);
     const QByteArray commandData = command.command();
-
+    qDebug() << "Executing command:" << type << commandData.toHex();
     const qint64 written = mSerialPort->write(commandData);
 
     if (written == qint64(commandData.length())) {
@@ -60,6 +61,13 @@ bool Reader::executeCommand(const CommandType type) const
     }
 
     return false;
+}
+
+QString Reader::status() const
+{
+    QString result;
+    result = QString(QMetaEnum::fromType<Status>().valueToKey(int(mStatus)));
+    return result;
 }
 
 void Reader::handleReadyRead()
@@ -231,12 +239,13 @@ void PmPacket::avg(Type &orig, const Type &other, const bool isOtherError)
     orig /= Type(2);
 }
 
-PmCommand::PmCommand(const CommandType _type, const quint8 _cmd, const quint16 _data, const bool _hasReply)
+Reader::PmCommand::PmCommand(const Reader::CommandType _type, const quint8 _cmd,
+                  const quint16 _data, const bool _hasReply)
     : type(_type), cmd(_cmd), data(_data), hasReply(_hasReply)
 {
 }
 
-QByteArray PmCommand::command() const
+QByteArray Reader::PmCommand::command() const
 {
     QByteArray result;
     QDataStream stream(&result, QIODevice::WriteOnly);
