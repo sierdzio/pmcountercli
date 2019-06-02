@@ -153,8 +153,8 @@ PmPacket::PmPacket(const QByteArray &packet)
         // Misc data
         stream >> version; // = quint8(packet.at(28));
         stream >> errorCode; // = quint8(packet.at(29));
-        const int dataBytesLength = stream.device()->pos(); // Should be 29
-        qDebug() << "Packet position" << dataBytesLength;
+        const qint64 dataBytesLength = stream.device()->pos(); // Should be 29
+        //qDebug() << "Packet position" << dataBytesLength;
         //stream.skipRawData(2); // skip 2 bytes
         stream >> payloadChecksum;
 
