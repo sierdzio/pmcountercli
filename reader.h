@@ -1,11 +1,11 @@
-#ifndef READER_H
-#define READER_H
+#pragma once
 
 #include <QByteArray>
 #include <QSerialPort>
 #include <QTimer>
 #include <QHash>
 #include <QObject>
+#include <QPointer>
 
 class PmPacket {
 public:
@@ -48,7 +48,7 @@ private:
     void avg(Type &orig, const Type &other, const bool isOtherError);
 };
 
-class Reader : public QObject
+class Pms7003Reader : public QObject
 {
     Q_OBJECT
 
@@ -84,12 +84,14 @@ public:
         bool hasReply = false;
     };
 
-    explicit Reader(QSerialPort *serialPort,
-                    const int timeout = 5000,
+    explicit Pms7003Reader(const QString &port,
                     QObject *parent = nullptr);
     PmPacket pmData() const;
-    int timeout() const;
     void restart();
+
+    bool isPortOpen() const;
+    QSerialPort::SerialPortError portError() const;
+    QString portErrorString() const;
 
     void setAverageResults(const bool average);
     bool isAveragingResults() const;
@@ -105,14 +107,12 @@ private slots:
     void handleError(const QSerialPort::SerialPortError error);
 
 private:
-    QSerialPort *mSerialPort = nullptr;
+    QPointer<QSerialPort> mSerialPort;
     QByteArray mReadData;
-    QTimer mTimer;
     PmPacket mPm;
     bool mAverageResults = false;
     Status mStatus = Unknown;
     const int mPacketSize = 32;
-    const int mTimeout = 5000;
     const QHash<CommandType, PmCommand> mCommands = {
         { RequestData, { RequestData, 0xe2, 0, true } },
         { MakePassive, { MakePassive, 0xe1, 0, false } },
@@ -121,5 +121,3 @@ private:
         { WakeUp,      { WakeUp,      0xe4, 0x0001, false } },
     };
 };
-
-#endif // READER_H

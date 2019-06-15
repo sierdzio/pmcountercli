@@ -4,50 +4,73 @@
 #include <QMetaEnum>
 #include <QDebug>
 
-Reader::Reader(QSerialPort *serialPort,
-               const int timeout,
-               QObject *parent)
-    : QObject(parent), mSerialPort(serialPort), mTimeout(timeout)
+Pms7003Reader::Pms7003Reader(const QString &port, QObject *parent)
+    : QObject(parent)
 {
+    mSerialPort = new QSerialPort(port, this);
+    mSerialPort->setBaudRate(QSerialPort::Baud9600);
+    mSerialPort->setBaudRate(QSerialPort::OneStop);
+
+    if (mSerialPort->open(QSerialPort::ReadWrite) == false) {
+        qWarning() << "Could not open the device port for reading"
+                   << mSerialPort->portName() << mSerialPort->baudRate()
+                   << mSerialPort->stopBits() << mSerialPort->errorString();
+        delete mSerialPort;
+        return;
+    }
+
     connect(mSerialPort, &QSerialPort::readyRead,
-            this, &Reader::handleReadyRead);
+            this, &Pms7003Reader::handleReadyRead);
     connect(mSerialPort, &QSerialPort::errorOccurred,
-            this, &Reader::handleError);
-    connect(&mTimer, &QTimer::timeout, this, &Reader::handleTimeout);
-    mTimer.setSingleShot(true);
-    mTimer.start(mTimeout);
+            this, &Pms7003Reader::handleError);
 }
 
-PmPacket Reader::pmData() const
+PmPacket Pms7003Reader::pmData() const
 {
     return mPm;
 }
 
-int Reader::timeout() const
+bool Pms7003Reader::isPortOpen() const
 {
-    return mTimeout;
+    if ((mSerialPort.isNull() == false) and mSerialPort->isOpen())
+        return true;
+    return false;
 }
 
-void Reader::restart()
+QSerialPort::SerialPortError Pms7003Reader::portError() const
 {
-    mTimer.start(mTimeout);
+    if (mSerialPort.isNull()) {
+        return QSerialPort::NotOpenError;
+    }
+
+    return mSerialPort->error();
 }
 
-void Reader::setAverageResults(const bool average)
+QString Pms7003Reader::portErrorString() const
+{
+    if (mSerialPort.isNull()) {
+        return tr("Serial port is not open");
+    }
+
+    return mSerialPort->errorString();
+}
+
+void Pms7003Reader::setAverageResults(const bool average)
 {
     mAverageResults = average;
 }
 
-bool Reader::isAveragingResults() const
+bool Pms7003Reader::isAveragingResults() const
 {
     return mAverageResults;
 }
 
-bool Reader::executeCommand(const CommandType type) const
+bool Pms7003Reader::executeCommand(const CommandType type) const
 {
-    if (mSerialPort->isOpen() == false
-        || mSerialPort->isWritable() == false
-        || mCommands.contains(type) == false) {
+    if (mSerialPort.isNull()
+        or mSerialPort->isOpen() == false
+        or mSerialPort->isWritable() == false
+        or mCommands.contains(type) == false) {
         return false;
     }
 
@@ -63,15 +86,19 @@ bool Reader::executeCommand(const CommandType type) const
     return false;
 }
 
-QString Reader::status() const
+QString Pms7003Reader::status() const
 {
     QString result;
     result = QString(QMetaEnum::fromType<Status>().valueToKey(int(mStatus)));
     return result;
 }
 
-void Reader::handleReadyRead()
+void Pms7003Reader::handleReadyRead()
 {
+    if (mSerialPort.isNull()) {
+        return;
+    }
+
     mReadData.append(mSerialPort->readAll());
 
     //if (!mTimer.isActive())
@@ -100,16 +127,12 @@ void Reader::handleReadyRead()
     }
 }
 
-void Reader::handleTimeout()
+void Pms7003Reader::handleError(const QSerialPort::SerialPortError error)
 {
-    if (mReadData.isEmpty()) {
-        qDebug() << "Timeout! Closing port";
-        mSerialPort->close();
+    if (mSerialPort.isNull()) {
+        return;
     }
-}
 
-void Reader::handleError(const QSerialPort::SerialPortError error)
-{
     if (error == QSerialPort::ReadError) {
         qDebug() << tr("An I/O error occurred while reading the data from port "
                        "%1, error: %2").arg(mSerialPort->portName(),
@@ -239,13 +262,15 @@ void PmPacket::avg(Type &orig, const Type &other, const bool isOtherError)
     orig /= Type(2);
 }
 
-Reader::PmCommand::PmCommand(const Reader::CommandType _type, const quint8 _cmd,
-                  const quint16 _data, const bool _hasReply)
+Pms7003Reader::PmCommand::PmCommand(const Pms7003Reader::CommandType _type,
+                                    const quint8 _cmd,
+                                    const quint16 _data,
+                                    const bool _hasReply)
     : type(_type), cmd(_cmd), data(_data), hasReply(_hasReply)
 {
 }
 
-QByteArray Reader::PmCommand::command() const
+QByteArray Pms7003Reader::PmCommand::command() const
 {
     QByteArray result;
     QDataStream stream(&result, QIODevice::WriteOnly);
