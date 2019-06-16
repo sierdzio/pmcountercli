@@ -103,7 +103,6 @@ public:
 
 private slots:
     void handleReadyRead();
-    void handleTimeout();
     void handleError(const QSerialPort::SerialPortError error);
 
 private:

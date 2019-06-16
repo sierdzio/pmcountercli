@@ -1,7 +1,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 
-#include "reader.h"
+#include "pms7003reader.h"
 
 int main(int argc, char *argv[])
 {

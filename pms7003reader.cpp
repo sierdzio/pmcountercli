@@ -1,4 +1,4 @@
-#include "reader.h"
+#include "pms7003reader.h"
 
 #include <QDataStream>
 #include <QMetaEnum>
